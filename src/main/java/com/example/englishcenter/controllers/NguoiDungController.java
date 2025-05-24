@@ -1,0 +1,264 @@
+package com.example.englishcenter.controllers;
+
+import com.example.englishcenter.Responses.DiemHocVienResponse;
+import com.example.englishcenter.Responses.LoginResponse;
+import com.example.englishcenter.Responses.NguoiDungResponse;
+import com.example.englishcenter.Responses.ThoiKhoaBieuCaNhanResponse;
+import com.example.englishcenter.dtos.NguoiDungDTO;
+import com.example.englishcenter.dtos.NguoiDungDangNhapDTO;
+import com.example.englishcenter.dtos.ThemHocSinhDTO;
+import com.example.englishcenter.exceptions.DataNotFoundException;
+import com.example.englishcenter.models.LopHoc;
+import com.example.englishcenter.models.NguoiDung;
+import com.example.englishcenter.models.NguoiLopHoc;
+import com.example.englishcenter.repositories.NguoiDungRepository;
+import com.example.englishcenter.repositories.NguoiLopHocRepository;
+import com.example.englishcenter.services.LopHocService;
+import com.example.englishcenter.services.NguoiDungService;
+import com.example.englishcenter.services.ThoiKhoaBieuService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("api/v1/nguoidung")
+
+@RequiredArgsConstructor
+public class NguoiDungController {
+    private final NguoiDungService nguoidungService;
+    private final NguoiDungRepository nguoiDungRepository;
+    private final ThoiKhoaBieuService thoiKhoaBieuService;
+    private final LopHocService lopHocService;
+    private final NguoiLopHocRepository nguoiLopHocRepository;
+
+    @PostMapping()
+    public ResponseEntity<?> createNguoiDung(
+            @Valid @RequestBody NguoiDungDTO nguoiDungDTO,
+            BindingResult bindingResult) {
+        if(bindingResult.hasErrors()) {
+            List<String> errorMessages = bindingResult.getFieldErrors()
+                    .stream()
+                    .map(FieldError::getDefaultMessage)
+                    .toList();
+            return ResponseEntity.badRequest().body(errorMessages);
+        }
+        nguoidungService.createNguoiDung(nguoiDungDTO);
+        return ResponseEntity.ok(nguoiDungDTO);
+    }
+
+
+    @PostMapping("/themhocsinh")
+    public ResponseEntity<?> themHocSinhAndThemVaoLop(
+            @Valid @RequestBody ThemHocSinhDTO themHocSinhDTO,
+            BindingResult bindingResult) throws Exception {
+        if (bindingResult.hasErrors()) {
+            List<String> errorMessages = bindingResult.getFieldErrors()
+                    .stream()
+                    .map(FieldError::getDefaultMessage)
+                    .toList();
+            return ResponseEntity.badRequest().body(errorMessages);
+        }
+
+        NguoiDungDTO nguoiDungDTO = themHocSinhDTO.getNguoiDungDTO();
+        Long malop = themHocSinhDTO.getMalop();
+
+        NguoiDung recentAddUser = nguoidungService.createNguoiDung(nguoiDungDTO);
+
+        if(malop != null){
+            LopHoc exitsLopHoc = lopHocService.getLopHocById(malop);
+            if(exitsLopHoc == null) {
+                throw new DataNotFoundException("Không tìm thấy lớp !");
+            }
+
+            NguoiLopHoc newNLH = new NguoiLopHoc();
+            newNLH.setNguoiDung(recentAddUser);
+            newNLH.setLopHoc(exitsLopHoc);
+            newNLH.setTrangThai("Đang Học");
+
+            Date today = new Date();
+            Date thoigianUuDai = exitsLopHoc.getKhoaHoc().getThoigianuudai();
+            if (thoigianUuDai != null && today.before(thoigianUuDai)) {
+                int uudai = Integer.parseInt(exitsLopHoc.getKhoaHoc().getUudai());
+                newNLH.setUudai(uudai);
+            } else {
+                newNLH.setUudai(0);
+            }
+
+            nguoiLopHocRepository.save(newNLH);
+
+            return ResponseEntity.ok("Đã thêm học sinh vào lớp!");
+        }
+        else {
+            // Nếu không chọn lớp (malop = null), chỉ tạo học viên mà không thêm vào lớp
+            return ResponseEntity.ok("Đã thêm học sinh nhưng không có lớp học liên kết!");
+        }
+    }
+
+    @GetMapping("/laydiemhocvien/{manguoidung}")
+    public DiemHocVienResponse layDiemHocVien(@PathVariable long manguoidung){
+        DiemHocVienResponse diemHocVienResponse = nguoidungService.laydiemHocVien(manguoidung);
+        return diemHocVienResponse;
+    }
+
+    @PutMapping("/suadiemhocvien/{manguoidung}")
+    public ResponseEntity<String> suadiemHocVien(@PathVariable long manguoidung,
+                                                 @RequestBody DiemHocVienResponse diemHocVienResponse){
+        nguoidungService.updateDiemHocVien(manguoidung, diemHocVienResponse);
+        return ResponseEntity.ok("cap nhat thanh cong! ");
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@RequestBody NguoiDungDangNhapDTO nguoiDungDangNhapDTO) throws DataNotFoundException {
+        LoginResponse response = nguoidungService.login(nguoiDungDangNhapDTO);
+        return ResponseEntity.ok(response);
+    }
+
+
+    @GetMapping("")
+    public  ResponseEntity<List<NguoiDungResponse>> getAllNguoiDung() {
+        List<NguoiDungResponse> responseList = nguoidungService.getAllNguoiDung();
+        return ResponseEntity.ok(responseList);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<NguoiDung> getNguoiDungById(@PathVariable long id) {
+        NguoiDung nguoiDung = nguoidungService.getNguoiDungById(id);
+        return ResponseEntity.ok(nguoiDung);
+    }
+
+    @GetMapping("/getAllHocSinh")
+    public ResponseEntity<List<NguoiDungResponse>> getNguoiDungSinhVien() {
+        // Lấy tất cả người dùng từ service
+        List<NguoiDungResponse> allNguoiDung = nguoidungService.getAllNguoiDung();
+
+        // Lọc những người dùng có tên chức vụ chứa "sinh viên", không phân biệt chữ hoa chữ thường
+        List<NguoiDungResponse> sinhVienList = allNguoiDung.stream()
+                .filter(nguoiDung -> nguoiDung.getTenchucvu().toLowerCase().contains("học viên"))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(sinhVienList);
+    }
+
+
+    @GetMapping("/getAllGiaoVien")
+    public ResponseEntity<List<NguoiDungResponse>> getNguoiDungGiaoVien() {
+        // Lấy tất cả người dùng từ service
+        List<NguoiDungResponse> allNguoiDung = nguoidungService.getAllNguoiDung();
+
+        // Lọc những người dùng có tên chức vụ chứa "sinh viên", không phân biệt chữ hoa chữ thường
+        List<NguoiDungResponse> giaovienLst = allNguoiDung.stream()
+                .filter(nguoiDung -> nguoiDung.getTenchucvu().toLowerCase().contains("giáo viên"))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(giaovienLst);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<String> updateNguoiDung(@PathVariable long id,
+                                                  @RequestBody NguoiDungDTO nguoiDungDTO) {
+        nguoidungService.updateNguoiDung(id, nguoiDungDTO);
+        return ResponseEntity.ok("update success");
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteNguoiDung(@PathVariable long id) {
+        nguoidungService.deleteNguoiDung(id);
+        return ResponseEntity.ok("delete success");
+    }
+
+
+//    @GetMapping("/giaovientronglich")
+//    public List<String> getGiaoVienTrongLich(@RequestParam("tenKhoaHoc") String tenKhoaHoc,
+//                                             @RequestParam(value = "thuHoc") String thuHoc,
+//                                             @RequestParam String caHoc){
+//        List<NguoiDung> giaoVienCoTrinhDoTuongUngVoiKhoa = nguoidungService.getUserByTenKhoaHoc(tenKhoaHoc);
+//
+//        if (tenKhoaHoc.equalsIgnoreCase("Khóa IELTS mất gốc")
+//                || tenKhoaHoc.equalsIgnoreCase("Khóa IELTS cấp tốc")
+//                || tenKhoaHoc.equalsIgnoreCase("Khóa IELTS 1 kèm 1")) {
+//            giaoVienCoTrinhDoTuongUngVoiKhoa = nguoidungService.getALLGiaoVien();
+//        } else {
+//            giaoVienCoTrinhDoTuongUngVoiKhoa = nguoidungService.getUserByTenKhoaHoc(tenKhoaHoc);
+//        }
+//
+//        List<Integer> thuHocLst = Arrays.stream(thuHoc.split(","))
+//                .map(Integer::parseInt)
+//                .collect(Collectors.toList());
+//        List<NguoiDung> giaoVienTrongLich = thoiKhoaBieuService.timGiaoVienRanh(thuHocLst,caHoc);
+//
+//        List<String> ketQua = new ArrayList<>();
+//
+//        for (NguoiDung gv : giaoVienCoTrinhDoTuongUngVoiKhoa) {
+//            if (giaoVienTrongLich.contains(gv)) {
+//                // Giáo viên trống lịch
+//                ketQua.add(gv.getHoten()+ " - Trống lịch");
+//            } else {
+//                // Giáo viên trùng lịch
+//                ketQua.add(gv.getHoten() + " - Trùng lịch");
+//            }
+//        }
+//        return ketQua;
+//    }
+
+    @GetMapping("/giaovientronglich")
+    public List<String> getGiaoVienTrongLich(@RequestParam("tenKhoaHoc") String tenKhoaHoc,
+                                             @RequestParam("thuHoc") String thuHoc,
+                                             @RequestParam String caHoc,
+                                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ngayKhaiGiang) {
+        List<NguoiDung> giaoVienCoTrinhDoTuongUngVoiKhoa;
+
+        if (tenKhoaHoc.equalsIgnoreCase("Khóa IELTS mất gốc")
+                || tenKhoaHoc.equalsIgnoreCase("Khóa IELTS cấp tốc")
+                || tenKhoaHoc.equalsIgnoreCase("Khóa IELTS 1 kèm 1")) {
+            giaoVienCoTrinhDoTuongUngVoiKhoa = nguoidungService.getALLGiaoVien();
+        } else {
+            giaoVienCoTrinhDoTuongUngVoiKhoa = nguoidungService.getUserByTenKhoaHoc(tenKhoaHoc);
+        }
+
+        List<Integer> thuHocLst = Arrays.stream(thuHoc.split(","))
+                .map(Integer::parseInt)
+                .collect(Collectors.toList());
+        List<NguoiDung> giaoVienRanhTheoLich = thoiKhoaBieuService.timGiaoVienRanhTrongDanhSach(giaoVienCoTrinhDoTuongUngVoiKhoa, thuHocLst,caHoc);
+
+        List<String> ketQua = new ArrayList<>();
+        for (NguoiDung gv : giaoVienCoTrinhDoTuongUngVoiKhoa) {
+            if (giaoVienRanhTheoLich.contains(gv)) {
+                ketQua.add(gv.getHoten() + " - Trống lịch");
+            } else {
+                boolean vanConRanh = thoiKhoaBieuService.giaoVienConBan(gv, thuHocLst, caHoc, ngayKhaiGiang);
+                if (vanConRanh) {
+                    ketQua.add(gv.getHoten() + " - Trống lịch (lớp cũ kết thúc trước)");
+                } else {
+                    ketQua.add(gv.getHoten() + " - Trùng lịch (chưa kết thúc)");
+                }
+            }
+        }
+
+        return ketQua;
+    }
+
+        @GetMapping("/personalSchedule/{maNguoiDung}")
+    public ResponseEntity<List<ThoiKhoaBieuCaNhanResponse>> getPersonalSchedule(@PathVariable Long maNguoiDung) {
+        List<ThoiKhoaBieuCaNhanResponse> schedule = thoiKhoaBieuService.getScheduleForUser(maNguoiDung);
+        return ResponseEntity.ok(schedule);
+    }
+
+    @PutMapping("/settendangnhap")
+    public ResponseEntity<String> updateTenDangNhap(){
+        nguoidungService.updateAllUsernames();
+        return ResponseEntity.ok("update success");
+    }
+
+
+}

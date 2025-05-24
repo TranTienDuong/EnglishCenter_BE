@@ -1,0 +1,19 @@
+package com.example.englishcenter.dtos;
+
+import jakarta.validation.constraints.Min;
+import lombok.*;
+
+import java.sql.Date;
+
+@Data
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class KhoaHocDTO {
+    private String tenkhoahoc;
+    @Min(value = 0, message = "Hoc phi phai lon hon hoac bang 0")
+    private int hocphi;
+    private String uudai;
+    private Date thoigianuudai;
+}
