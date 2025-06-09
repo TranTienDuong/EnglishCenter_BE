@@ -47,4 +47,12 @@ public class FormNhapHoc {
     @Column(name = "trangthai")
     private String trangthai;
 
+    @Column(name = "diemthithu")
+    private Float diemthithu;
+
+    @Column(name = "ngaythithu")
+    private Date ngaythithu;
+
+    @Column(name = "trinhdodudoan")
+    private String trinhdodudoan;
 }

@@ -1,7 +1,9 @@
 package com.example.englishcenter.dtos;
 
+import jakarta.persistence.Column;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 
@@ -20,4 +22,7 @@ public class FormNhapHocDTO {
     private String email;
     private Date ngaygui;
     private String trangthai;
+    private Float diemthithu;
+    private Date ngaythithu;
+    private String trinhdodudoan;
 }

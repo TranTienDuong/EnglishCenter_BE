@@ -1,5 +1,6 @@
 package com.example.englishcenter.controllers;
 
+import com.example.englishcenter.Responses.NguoiDungResponse;
 import com.example.englishcenter.dtos.NguoiLopHocDTO;
 import com.example.englishcenter.exceptions.DataNotFoundException;
 import com.example.englishcenter.models.LopHoc;
@@ -41,18 +42,18 @@ public class NguoiLopHocController {
         if (nguoiDung == null || lopHoc == null) {
             return ResponseEntity.badRequest().body("Người dùng hoặc lớp không tồn tại!");
         }
+        if (nguoiDung.getChucVu().getTenchucvu().toLowerCase().contains("sinh viên")) {
+            List<NguoiLopHoc> dangHocList = nguoiLopHocRepository.findByNguoiDungAndTrangThai(nguoiDung, "Đang Học");
 
-        // Kiểm tra người dùng có đang học lớp khác không
-        List<NguoiLopHoc> nguoiLopHocList = nguoiLopHocRepository.findByNguoiDungAndTrangThai(nguoiDung, "Đang Học");
+            if (!dangHocList.isEmpty()) {
+                return ResponseEntity.badRequest().body("Người dùng đã đang học lớp khác.");
+            }
+        }
 
         // Kiểm tra người dùng đã có trong lớp này chưa
         boolean isExist = nguoiLopHocRepository.existsByNguoiDungAndLopHoc(nguoiDung, lopHoc);
         if (isExist) {
             return ResponseEntity.badRequest().body("Người dùng đã có trong lớp này!");
-        }
-
-        if (!nguoiLopHocList.isEmpty()) {
-            return ResponseEntity.badRequest().body("Người dùng đã đang học lớp khác.");
         }
 
         // Nếu không có lỗi, gọi service để thêm người vào lớp

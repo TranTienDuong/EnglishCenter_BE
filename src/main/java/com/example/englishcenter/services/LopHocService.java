@@ -203,10 +203,10 @@ public class LopHocService implements ILopHocService {
                 .findBytenkhoahoc(lopHocDTO.getTenkhoahoc())
                 .orElseThrow(() -> new DataNotFoundException(
                         "Khong tim thay khoa hoc co ma la" + lopHocDTO.getTenkhoahoc()));
+
         existingLopHoc.setTenlophoc(lopHocDTO.getTenlophoc());
         existingLopHoc.setNgaykhaigiang(lopHocDTO.getNgaykhaigiang());
         existingLopHoc.setThoigianhoc(lopHocDTO.getThoigianhoc());
-        existingLopHoc.setThuhoc(lopHocDTO.getThuhoc());
         existingLopHoc.setKhoaHoc(existingKhoaHoc);
 
         return lopHocRepository.save(existingLopHoc);
